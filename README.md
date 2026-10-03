@@ -1,34 +1,87 @@
-### SkillChain-MCP Guard
+### AgenticTrustFabric
 
-SkillChain-MCP Guard es un framework local-first para auditar skills, tools MCP y evidencia DevSecOps antes de confiar en un agente. El proyecto implementa scanner de skills, auditor MCP, policy gate, benchmark adversarial, evidence pack verificable, dashboard, CI de seguridad y controles de runtime.
+AgenticTrustFabric es una plataforma de seguridad y confianza para sistemas agénticos. El proyecto busca aplicar políticas, control de privilegios, aislamiento, trazabilidad y evidencia verificable sobre interacciones entre agentes, herramientas y servicios.
 
+La implementación actual se concentra en MCP, auditoría de skills, policy gates, RBAC, sandbox, evaluación adversarial y evidencia DevSecOps. La arquitectura futura separa el núcleo de confianza de los protocolos concretos para permitir adaptadores MCP, A2A y otros protocolos sin acoplar las políticas de seguridad a una sola tecnología.
 
-#### Qué hace
+#### Estado actual
 
-- Audita archivos `skills/*/SKILL.md`.
-- Audita tools, resources y prompts MCP.
-- Ejecuta benchmark adversarial controlado.
-- Valida evidencia real frente a fallback local.
-- Genera `policy-report.json`, `dashboard.html` y evidence pack verificable.
-- Protege ejecución MCP con allowlist, RBAC y sandbox.
-- Endurece Docker Compose y Kubernetes para demostración/preproducción.
+Actualmente están implementadas las siguientes capacidades:
 
-#### Perfiles principales
+- auditoría de archivos `skills/*/SKILL.md`
+- auditoría de tools, resources y prompts MCP
+- policy gate con modos `demo`, `ci` y `strict`
+- benchmark adversarial controlado
+- evidence pack verificable
+- RBAC para operaciones expuestas mediante MCP
+- sandbox local y Docker
+- dashboard de estado
+- integración con scanners DevSecOps
+- hardening inicial para Docker Compose y Kubernetes
 
-| Perfil | Comando | Uso |
+A2A y otros adaptadores aún no forman parte del código funcional. Se documentan como evolución planificada.
+
+#### Principio arquitectónico
+
+AgenticTrustFabric se organiza alrededor de un núcleo neutral respecto al protocolo.
+
+```text
+Agentic system
+     |
+Protocol adapter
+     |
+Canonical security event
+     |
+Policy and trust core
+     |
+Policy decision and evidence
+     |
+Controlled execution
+```
+
+MCP se considera un adaptador para interacciones entre agentes, herramientas y recursos. A2A se considera un adaptador futuro para interacciones entre agentes.
+
+La política de seguridad, la evidencia, la identidad y la trazabilidad no deben depender directamente del protocolo de transporte.
+
+#### Compatibilidad heredada
+
+El repositorio fue renombrado a `AgenticTrustFabric`, pero algunos identificadores internos conservan temporalmente la identidad anterior.
+
+Entre ellos se encuentran:
+
+- paquete Python `skillchain-mcp-guard`
+- comando `skillchain`
+- módulo `devsecops_agent`
+- variables de entorno con prefijo `SKILLCHAIN_`
+- nombre interno del servidor MCP `skillchain-mcp-guard`
+
+Estos identificadores no se modifican en la fase documental para evitar mezclar cambios de arquitectura con cambios funcionales. Su migración se realizará después de estabilizar contratos, pruebas y compatibilidad.
+
+#### Perfiles de ejecución
+
+| Perfil | Comando | Función |
 |---|---|---|
-| Demo local | `make demo-local` | Demostración reproducible; puede quedar en `WARN`. |
-| CI presentación temporal | Workflow `ci-devsecops.yml` | Ejecuta controles diagnósticos sin bloquear el merge. |
-| CI seguridad completa | `make security-ci` | Scanners reales, evidence pack y policy gate `ci`; ejecución manual mientras dure la presentación. |
-| Release estricto | `make release-verify` | No acepta fallback ni evidencia faltante. |
+| Demo | `make demo-local` | Demostración reproducible, puede terminar en `WARN` |
+| Diagnóstico CI | Workflow `ci-devsecops.yml` | Ejecuta controles informativos y no debe interpretarse como release gate |
+| Security CI | `make security-ci` | Ejecuta scanners reales, policy gate y evidencia |
+| Release | `make release-verify` | Exige evidencia válida y no acepta fallback |
 
-#### Estado temporal del workflow
+#### Separación de estados
 
-Para disponer de una base estable de presentación, el workflow principal usa temporalmente un perfil no bloqueante. Ejecuta compilación, pruebas, Ruff, mypy, Bandit, Semgrep y generación del dashboard cuando las herramientas pueden instalarse, pero registra sus códigos como diagnóstico y finaliza correctamente. El smoke Docker conserva el nombre del check, aunque su ejecución pesada queda diferida.
+Un resultado exitoso del workflow diagnóstico no significa que el repositorio haya superado un release gate.
 
-Este perfil no equivale a una certificación de seguridad ni a `make release-verify`. Los controles completos continúan disponibles mediante `make security-ci` y `make release-verify` para su rehabilitación posterior.
+Se mantienen cuatro niveles conceptuales:
 
-#### Comandos esenciales
+```text
+Level 0  demo
+Level 1  diagnostic
+Level 2  security-ci
+Level 3  release
+```
+
+Solo los niveles de seguridad y release deben poder declarar evidencia operacional verificada.
+
+#### Comandos actuales
 
 ```bash
 python -m pytest -q
@@ -38,68 +91,44 @@ skillchain benchmark run --suite eval_cases --output artifacts/benchmark-report.
 skillchain evidence verify artifacts/evidence-pack-*.tar.gz --manifest artifacts/evidence-manifest.json
 ```
 
-#### Trazabilidad por ejecución
+Estos comandos conservan nombres heredados hasta la fase de migración interna.
 
-Cada corrida usa `SKILLCHAIN_RUN_ID` global exportado por el Makefile. Los reportes internos, registros `.evidence/*-exit.json`, policy gate y evidence pack deben compartir ese identificador para evitar mezclar artifacts de ejecuciones distintas.
+#### Modelo de seguridad
 
-#### Seguridad MCP
+La ejecución controlada se apoya actualmente en:
 
-La tool `run_devsecops_check` no ejecuta comandos libres. Debe pasar por:
+1. allowlist de targets Makefile
+2. RBAC definido en `config/rbac.json`
+3. sandbox seleccionado por configuración
+4. timeout de operaciones
+5. logs limitados para clientes
+6. policy gates
+7. evidencia ligada a una ejecución concreta
 
-1. allowlist de targets Makefile;
-2. política RBAC en `config/rbac.json`;
-3. sandbox configurado por `SKILLCHAIN_SANDBOX_MODE`;
-4. timeout validado;
-5. logs recortados para clientes MCP.
+El objetivo futuro es extender este modelo a identidad de agentes, delegación, provenance y cadenas de confianza entre protocolos.
 
-#### Benchmark adversarial
+#### Benchmark
 
-El dataset en `eval_cases/cases.yaml` contiene más de 500 casos declarativos. Incluye benignos, prompt injection, tool poisoning, path traversal, evidence tampering, traversal codificado, unicode homoglyphs y casos curados de borde. La versión corregida normaliza texto de seguridad para bloquear homoglifos Unicode dentro del dataset controlado. Las métricas no deben venderse como certificación de seguridad ni como pentest exhaustivo.
+El benchmark de `eval_cases/cases.yaml` sirve para detectar regresiones sobre un dataset controlado. Sus métricas no representan certificación de seguridad, pentest exhaustivo ni cobertura completa de ataques reales.
 
+La evolución experimental se documenta en `docs/THREAT_MODEL.md` y `ROADMAP.md`.
 
-#### Nota sobre release estricto
+#### Documentación principal
 
-`make demo-local` puede producir `WARN` y un score bajo porque usa evidencia fallback local. Esto es intencional. Si después de `make demo-local` ejecutas:
-
-```bash
-python -m devsecops_agent.cli --root . policy-check --mode strict --json
-```
-
-la salida esperada es `FAIL`, aunque `evidence_completeness` sea `1.0`. La razón es que la completitud solo indica que existen archivos de evidencia; no indica que provengan de scanners reales. En modo `strict`, la evidencia fallback local no es aceptable.
-
-Para que `strict` pase, antes debe ejecutarse `make security-ci` o `make release-verify` en GitHub Actions o en una máquina preparada con Bandit, Semgrep, pip-audit, Gitleaks, Syft, Grype, Trivy, OpenSSF Scorecard, Docker Compose y ZAP.
-
-#### Empaquetado Python
-
-El workflow construye el paquete distribuible con:
-
-```bash
-python -m build
-```
-
-Esto valida que el proyecto no dependa únicamente de `pip install -e .`. Los artefactos `dist/*.whl` y `dist/*.tar.gz` se suben como artifact del job de seguridad.
-
-#### Roles MCP
-
-La política RBAC separa cuatro roles:
-
-- `auditor_readonly`: lee evidencias y resume hallazgos, sin ejecutar targets ni regenerar archivos.
-- `auditor_operator`: ejecuta operaciones controladas de demo y regeneración liviana.
-- `ci_runner`: ejecuta targets de CI/release y generación completa de evidencia.
-- `admin`: reservado para mantenimiento controlado.
-
-El rol efectivo no lo decide el cliente MCP. Se obtiene desde `SKILLCHAIN_MCP_ROLE` o desde el rol por defecto definido en `config/rbac.json`.
-
-#### Estado de CI real
-
-El repositorio incluye workflow para instalar herramientas externas y ejecutar `make security-ci`, pero el estado de release estricto solo puede afirmarse después de ver una corrida real exitosa en GitHub Actions o en una máquina equivalente. Si una herramienta externa falta, el policy gate debe fallar.
-
-#### Documentación mantenida
-
+- `docs/ARCHITECTURE.md`
+- `docs/TRUST_MODEL.md`
+- `docs/THREAT_MODEL.md`
+- `docs/PROTOCOL_MODEL.md`
+- `docs/protocols/MCP.md`
+- `docs/protocols/MCP_COMPATIBILITY.md`
+- `docs/protocols/A2A.md`
 - `docs/SEGURIDAD.md`
 - `docs/BENCHMARK.md`
 - `docs/RBAC_SANDBOX.md`
 - `docs/KUBERNETES.md`
+- `ROADMAP.md`
 - `SECURITY.md`
 
+#### Regla para la siguiente fase
 
+No se debe introducir A2A, migrar el SDK MCP ni renombrar paquetes internos hasta que el modelo neutral de protocolo y los contratos de seguridad esten definidos y revisados.
