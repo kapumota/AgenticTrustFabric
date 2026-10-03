@@ -1,20 +1,57 @@
 ### Política de seguridad
 
-Este proyecto documenta su modelo de seguridad en español.
+AgenticTrustFabric documenta su modelo de seguridad y sus límites de confianza de forma explícita.
 
 #### Reporte responsable
 
-No reportes vulnerabilidades sensibles mediante issues públicos. Usa un canal privado del mantenedor del repositorio y adjunta:
+No se deben publicar vulnerabilidades sensibles mediante issues públicos.
 
-- versión o commit afectado,
-- pasos mínimos de reproducción,
-- impacto esperado,
-- evidencia no sensible.
+Un reporte privado debe incluir, cuando corresponda:
 
-#### Alcance
+- versión o commit afectado
+- pasos mínimos de reproducción
+- impacto esperado
+- precondiciones necesarias
+- evidencia no sensible
+- propuesta de mitigación si existe
 
-El alcance cubre Skill Scanner, MCP Auditor, Policy Engine, Evidence Pack, benchmark adversarial y ejecución controlada de tools MCP.
+#### Alcance actual
 
-#### Fuera de alcance
+La implementación actual cubre:
 
-El modo `demo-local` no certifica seguridad real. Solo genera evidencia reproducible para demostración. Los modos `ci` y `strict` deben ejecutarse con scanners reales y evidence pack verificable.
+- Skill Scanner
+- MCP Auditor
+- Policy Engine
+- Evidence Pack
+- benchmark adversarial
+- RBAC
+- sandbox
+- ejecución controlada de tools MCP
+- validación de evidencia DevSecOps
+
+#### Alcance futuro
+
+La arquitectura contempla incorporar controles para:
+
+- identidad de agentes
+- delegación entre agentes
+- A2A
+- provenance entre protocolos
+- cadenas de confianza
+- trazabilidad distribuida
+- policy enforcement neutral respecto al protocolo
+
+Estas capacidades no deben considerarse implementadas hasta disponer de código, pruebas y evidencia reproducible.
+
+#### Límites
+
+El modo `demo-local` no certifica seguridad real.
+
+Los modos `ci` y `strict` requieren scanners reales y evidencia verificable. Un workflow diagnóstico que finaliza correctamente no equivale a un release gate superado.
+
+#### Documentos relacionados
+
+- `docs/SEGURIDAD.md`
+- `docs/TRUST_MODEL.md`
+- `docs/THREAT_MODEL.md`
+- `docs/PROTOCOL_MODEL.md`
